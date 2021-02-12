@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'colors.dart';
 import 'screens/register.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -22,26 +23,50 @@ class MyApp extends StatelessWidget {
           ),
           StreamProvider(
               create: (context) =>
-                  context.read<AuthenticationService>().authStateChanges)
+                  context.read<AuthenticationService>().authStateChanges),
         ],
         child: MaterialApp(
           title: 'Flutter Demo',
           theme: ThemeData(
             primaryColor: PrimaryColors.black,
           ),
-          home: AuthenticationWrapper(),
+          routes: {
+            '/': (context) => LoadingPage(),
+            '/todo': (context) => TodoPage(),
+            '/register': (context) => RegisterPage(),
+          },
         ));
   }
 }
 
-class AuthenticationWrapper extends StatelessWidget {
+class LoadingPage extends StatefulWidget {
+  @override
+  _LoadingPageState createState() => _LoadingPageState();
+}
+
+class _LoadingPageState extends State<LoadingPage> {
+  Future<void> init() async {
+    final user = context.read<AuthenticationService>().user;
+
+    if (user != null) {
+      await context.read<AuthenticationService>().loadUserData();
+      Navigator.pushReplacementNamed(context, '/todo');
+    } else {
+      SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
+        Navigator.pushReplacementNamed(context, '/register');
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    init();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final firebaseUser = context.watch<User>();
-
-    if (firebaseUser != null) return TodoPage();
-
-    return RegisterPage();
+    return Container();
   }
 }
 
@@ -55,11 +80,13 @@ class TodoPage extends StatefulWidget {
 class _TodoPage extends State<TodoPage> {
   @override
   Widget build(BuildContext context) {
-    print(context.read<AuthenticationService>().userData);
     return Scaffold(
       body: Center(
         child: FloatingActionButton(
-            onPressed: () async => AuthenticationService().signOut(),
+            onPressed: () async {
+              context.read<AuthenticationService>().signOut();
+              Navigator.pushReplacementNamed(context, '/register');
+            },
             child: Icon(
               Icons.logout,
             )),

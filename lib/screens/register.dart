@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../colors.dart';
+import 'package:provider/provider.dart';
 import '../authentication_service.dart';
 
 class RegisterPage extends StatelessWidget {
@@ -81,8 +82,11 @@ class RegisterPage extends StatelessWidget {
                       Padding(
                           padding: EdgeInsets.symmetric(vertical: 20),
                           child: MaterialButton(
-                            onPressed: () async => {
-                              await AuthenticationService().signInWithGoogle()
+                            onPressed: () async {
+                              await context
+                                  .read<AuthenticationService>()
+                                  .signInWithGoogle();
+                              Navigator.pushReplacementNamed(context, '/todo');
                             },
                             textColor: Colors.black,
                             color: Colors.white,

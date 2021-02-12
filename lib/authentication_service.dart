@@ -6,14 +6,11 @@ class AuthenticationService {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  bool _loggedIn = false;
-
-  Map<String, String> userData = {
-    'id': '',
-    'displayName': '',
-  };
+  Map<String, String> userData;
 
   Stream<User> get authStateChanges => _firebaseAuth.authStateChanges();
+
+  User get user => _firebaseAuth.currentUser;
 
   AuthenticationService();
 
@@ -69,8 +66,6 @@ class AuthenticationService {
   Future<void> setUserData({String userId, String fullName}) async {
     DocumentReference userRef = _firestore.collection('users').doc(userId);
 
-    print(fullName);
-
     Map<String, dynamic> fetchedUserData =
         await _firestore.runTransaction((transaction) async {
       DocumentSnapshot snapshot = await transaction.get(userRef);
@@ -85,11 +80,16 @@ class AuthenticationService {
       return newUserDoc;
     });
 
-    print(fetchedUserData['displayName']);
-
     userData = {
       'id': userId,
       'displayName': fetchedUserData['displayName'],
     };
+  }
+
+  Future<void> loadUserData({String userId}) async {
+    try {
+      userData =
+          (await _firestore.collection('users').doc(userId).get()).data();
+    } catch (e) {}
   }
 }
