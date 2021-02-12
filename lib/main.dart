@@ -34,6 +34,17 @@ class MyApp extends StatelessWidget {
   }
 }
 
+class AuthenticationWrapper extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final firebaseUser = context.watch<User>();
+
+    if (firebaseUser != null) return TodoPage();
+
+    return RegisterPage();
+  }
+}
+
 class TodoPage extends StatefulWidget {
   TodoPage({Key key}) : super(key: key);
 
@@ -44,6 +55,7 @@ class TodoPage extends StatefulWidget {
 class _TodoPage extends State<TodoPage> {
   @override
   Widget build(BuildContext context) {
+    print(context.read<AuthenticationService>().userData);
     return Scaffold(
       body: Center(
         child: FloatingActionButton(
@@ -53,16 +65,5 @@ class _TodoPage extends State<TodoPage> {
             )),
       ),
     );
-  }
-}
-
-class AuthenticationWrapper extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final firebaseUser = context.watch<User>();
-
-    if (firebaseUser != null) return TodoPage();
-
-    return RegisterPage();
   }
 }

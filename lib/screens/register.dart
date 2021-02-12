@@ -100,7 +100,7 @@ class RegisterPage extends StatelessWidget {
                                   child:
                                       Image.asset('assets/images/google.png'),
                                 ),
-                                Text('Signup with Googles'),
+                                Text('Signup with Google'),
                                 Container(
                                   width: 16,
                                 )
