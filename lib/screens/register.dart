@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../colors.dart';
+import '../authentication_service.dart';
 
 class RegisterPage extends StatelessWidget {
   @override
@@ -80,7 +81,9 @@ class RegisterPage extends StatelessWidget {
                       Padding(
                           padding: EdgeInsets.symmetric(vertical: 20),
                           child: MaterialButton(
-                            onPressed: () => {print('Register google')},
+                            onPressed: () async => {
+                              await AuthenticationService().signInWithGoogle()
+                            },
                             textColor: Colors.black,
                             color: Colors.white,
                             elevation: 5,
@@ -92,14 +95,14 @@ class RegisterPage extends StatelessWidget {
                               mainAxisAlignment: MainAxisAlignment.spaceAround,
                               children: [
                                 Container(
-                                  width: 24,
-                                  height: 24,
+                                  width: 16,
+                                  height: 16,
                                   child:
                                       Image.asset('assets/images/google.png'),
                                 ),
                                 Text('Signup with Googles'),
                                 Container(
-                                  width: 24,
+                                  width: 16,
                                 )
                               ],
                             ),

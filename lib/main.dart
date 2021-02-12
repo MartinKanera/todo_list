@@ -1,21 +1,36 @@
 import 'package:flutter/material.dart';
 import 'colors.dart';
 import 'screens/register.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import 'authentication_service.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        primaryColor: PrimaryColors.black,
-      ),
-      home: RegisterPage(),
-    );
+    return MultiProvider(
+        providers: [
+          Provider<AuthenticationService>(
+            create: (_) => AuthenticationService(),
+          ),
+          StreamProvider(
+              create: (context) =>
+                  context.read<AuthenticationService>().authStateChanges)
+        ],
+        child: MaterialApp(
+          title: 'Flutter Demo',
+          theme: ThemeData(
+            primaryColor: PrimaryColors.black,
+          ),
+          home: AuthenticationWrapper(),
+        ));
   }
 }
 
@@ -29,6 +44,25 @@ class TodoPage extends StatefulWidget {
 class _TodoPage extends State<TodoPage> {
   @override
   Widget build(BuildContext context) {
-    return Scaffold();
+    return Scaffold(
+      body: Center(
+        child: FloatingActionButton(
+            onPressed: () async => AuthenticationService().signOut(),
+            child: Icon(
+              Icons.logout,
+            )),
+      ),
+    );
+  }
+}
+
+class AuthenticationWrapper extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final firebaseUser = context.watch<User>();
+
+    if (firebaseUser != null) return TodoPage();
+
+    return RegisterPage();
   }
 }
