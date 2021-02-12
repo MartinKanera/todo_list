@@ -1,7 +1,7 @@
 import 'dart:ui';
 
-class PrimaryColor {
-  PrimaryColor._();
+class PrimaryColors {
+  PrimaryColors._();
 
   static Color _black = Color(0xff1C1D21);
   static Color _pink = Color(0xffDE4D86);

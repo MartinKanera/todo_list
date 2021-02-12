@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'colors.dart';
+import 'screens/register.dart';
 
 void main() {
   runApp(MyApp());
@@ -11,12 +12,9 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
-        primaryColor: PrimaryColor.black,
+        primaryColor: PrimaryColors.black,
       ),
-      routes: <String, WidgetBuilder>{
-        '/': (BuildContext context) => TodoPage(),
-        '/a': (BuildContext context) => TodoPage(),
-      },
+      home: RegisterPage(),
     );
   }
 }
