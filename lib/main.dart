@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'colors.dart';
-import 'screens/register.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'authentication_service.dart';
+import 'screens/register.dart';
+import 'screens/login.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,12 +27,10 @@ class MyApp extends StatelessWidget {
         ],
         child: MaterialApp(
           title: 'Flutter Demo',
-          theme: ThemeData(
-            primaryColor: PrimaryColors.black,
-          ),
           routes: {
             '/': (context) => LoadingPage(),
             '/todo': (context) => TodoPage(),
+            '/login': (context) => LoginPage(),
             '/register': (context) => RegisterPage(),
           },
         ));

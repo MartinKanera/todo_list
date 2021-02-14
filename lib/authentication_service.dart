@@ -23,7 +23,10 @@ class AuthenticationService {
       final firebaseUser = await _firebaseAuth.createUserWithEmailAndPassword(
           email: email.trim(), password: password);
 
-      firebaseUser.user;
+      await setUserData(
+          userId: firebaseUser.user.uid,
+          fullName:
+              '${firstName[0].toUpperCase()}${firstName.substring(1)} ${lastName[0].toUpperCase()}${lastName.substring(1)}');
     } on FirebaseException catch (e) {
       print(e.message);
     }
@@ -31,8 +34,10 @@ class AuthenticationService {
 
   Future<void> signIn({String email, String password}) async {
     try {
-      await _firebaseAuth.signInWithEmailAndPassword(
+      UserCredential user = await _firebaseAuth.signInWithEmailAndPassword(
           email: email.trim(), password: password);
+
+      await setUserData(userId: user.user.uid);
     } on FirebaseException catch (e) {
       print(e.message);
     }
