@@ -14,7 +14,7 @@ class AuthenticationService {
 
   AuthenticationService();
 
-  Future<void> signUp(
+  Future<String> signUp(
       {String firstName,
       String lastName,
       String email,
@@ -26,20 +26,31 @@ class AuthenticationService {
       await setUserData(
           userId: firebaseUser.user.uid,
           fullName:
-              '${firstName[0].toUpperCase()}${firstName.substring(1)} ${lastName[0].toUpperCase()}${lastName.substring(1)}');
+              '${firstName[0].toUpperCase()}${firstName.substring(1).trim()} ${lastName[0].toUpperCase()}${lastName.substring(1).trim()}');
+
+      return '';
     } on FirebaseException catch (e) {
-      print(e.message);
+      if (e.code == 'email-already-in-use') return 'Email already in use';
+
+      return 'Unexpected error';
     }
   }
 
-  Future<void> signIn({String email, String password}) async {
+  Future<String> signIn({String email, String password}) async {
     try {
       UserCredential user = await _firebaseAuth.signInWithEmailAndPassword(
           email: email.trim(), password: password);
 
       await setUserData(userId: user.user.uid);
-    } on FirebaseException catch (e) {
-      print(e.message);
+
+      return '';
+    } on FirebaseAuthException catch (e) {
+      print(e.code);
+
+      if (e.code == 'user-not-found')
+        return 'User with this email does not exist';
+
+      return 'Unexpected error';
     }
   }
 
@@ -66,6 +77,8 @@ class AuthenticationService {
     try {
       await GoogleSignIn().signOut();
     } catch (_) {}
+
+    userData = {};
   }
 
   Future<void> setUserData({String userId, String fullName}) async {

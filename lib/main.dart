@@ -51,7 +51,7 @@ class _LoadingPageState extends State<LoadingPage> {
       Navigator.pushReplacementNamed(context, '/todo');
     } else {
       SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
-        Navigator.pushReplacementNamed(context, '/register');
+        Navigator.pushReplacementNamed(context, '/login');
       });
     }
   }

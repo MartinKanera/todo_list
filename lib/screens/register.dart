@@ -14,11 +14,6 @@ class _RegisterPageState extends State<RegisterPage> {
   final _formKey = GlobalKey<FormState>();
 
   @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final node = FocusScope.of(context);
     return Scaffold(
@@ -113,6 +108,9 @@ class _RegisterPageState extends State<RegisterPage> {
                               if (value.isEmpty) {
                                 return 'Please enter your password';
                               }
+                              if (value.length < 6) {
+                                return 'Password must be at least 6 characters long';
+                              }
 
                               return null;
                             },
@@ -131,15 +129,20 @@ class _RegisterPageState extends State<RegisterPage> {
                             child: MaterialButton(
                               onPressed: () async {
                                 if (_formKey.currentState.validate()) {
-                                  await context
+                                  String error = await context
                                       .read<AuthenticationService>()
                                       .signUp(
                                           firstName: firstName,
                                           lastName: lastName,
                                           email: email,
                                           password: password);
-                                  Navigator.pushReplacementNamed(
-                                      context, '/todo');
+
+                                  if (error.isEmpty)
+                                    Navigator.pushReplacementNamed(
+                                        context, '/todo');
+                                  else
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text(error)));
                                 }
                               },
                               child: Text('Register'),
