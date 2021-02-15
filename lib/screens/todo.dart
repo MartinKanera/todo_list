@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../authentication_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../colors.dart';
+import '../group_by.dart';
 
 class TodoPage extends StatefulWidget {
   TodoPage({Key key}) : super(key: key);
@@ -12,69 +14,43 @@ class TodoPage extends StatefulWidget {
 }
 
 class _TodoPage extends State<TodoPage> {
+  final _firestore = FirebaseFirestore.instance;
+
+  Map<String, String> _user;
+  Map<DateTime, dynamic> _events;
+
   CalendarController _calendarController;
-  Map<DateTime, List> _events;
+
+  DateTime _selectedDay = DateTime.now();
+  List<dynamic> _selectedEvents;
 
   @override
   void initState() {
     super.initState();
     _calendarController = CalendarController();
+    _user = context.read<AuthenticationService>().userData;
 
-    final _selectedDay = DateTime.now();
+    _firestore
+        .collection('todos')
+        .where('userId', isEqualTo: _user['id'])
+        .snapshots()
+        .listen((event) {
+      setState(() {
+        final formattedTodos = event.docs.map((doc) {
+          return {
+            'id': doc.id,
+            'title': doc.data()['title'],
+            'description': doc.data()['description'],
+            'completed': doc.data()['completed'],
+            'timestamp': DateTime.fromMillisecondsSinceEpoch(
+                doc.data()['timestamp'].seconds * 1000),
+          };
+        });
 
-    _events = {
-      _selectedDay.subtract(Duration(days: 30)): [
-        'Event A0',
-        'Event B0',
-        'Event C0'
-      ],
-      _selectedDay.subtract(Duration(days: 27)): ['Event A1'],
-      _selectedDay.subtract(Duration(days: 20)): [
-        'Event A2',
-        'Event B2',
-        'Event C2',
-        'Event D2'
-      ],
-      _selectedDay.subtract(Duration(days: 16)): ['Event A3', 'Event B3'],
-      _selectedDay.subtract(Duration(days: 10)): [
-        'Event A4',
-        'Event B4',
-        'Event C4'
-      ],
-      _selectedDay.subtract(Duration(days: 4)): [
-        'Event A5',
-        'Event B5',
-        'Event C5'
-      ],
-      _selectedDay.subtract(Duration(days: 2)): ['Event A6', 'Event B6'],
-      _selectedDay: ['Event A7', 'Event B7', 'Event C7', 'Event D7'],
-      _selectedDay.add(Duration(days: 1)): [
-        'Event A8',
-        'Event B8',
-        'Event C8',
-        'Event D8'
-      ],
-      _selectedDay.add(Duration(days: 3)):
-          Set.from(['Event A9', 'Event A9', 'Event B9']).toList(),
-      _selectedDay.add(Duration(days: 7)): [
-        'Event A10',
-        'Event B10',
-        'Event C10'
-      ],
-      _selectedDay.add(Duration(days: 11)): ['Event A11', 'Event B11'],
-      _selectedDay.add(Duration(days: 17)): [
-        'Event A12',
-        'Event B12',
-        'Event C12',
-        'Event D12'
-      ],
-      _selectedDay.add(Duration(days: 22)): ['Event A13', 'Event B13'],
-      _selectedDay.add(Duration(days: 26)): [
-        'Event A14',
-        'Event B14',
-        'Event C14'
-      ],
-    };
+        final groupedEvents = formattedTodos.groupBy((m) => m['timestamp']);
+        _events = groupedEvents.cast<DateTime, List<dynamic>>();
+      });
+    });
   }
 
   @override
@@ -106,6 +82,15 @@ class _TodoPage extends State<TodoPage> {
         ),
       ),
     );
+  }
+
+  void dayChanged(DateTime day, List<dynamic> events) {
+    setState(() {
+      _selectedDay = day;
+      _selectedEvents = events;
+
+      print(_selectedEvents);
+    });
   }
 
   @override
@@ -147,6 +132,7 @@ class _TodoPage extends State<TodoPage> {
             TableCalendar(
               events: _events,
               calendarController: _calendarController,
+              onDaySelected: (day, events, holidays) => dayChanged(day, events),
               initialCalendarFormat: CalendarFormat.month,
               availableCalendarFormats: {CalendarFormat.month: 'month'},
               daysOfWeekStyle: DaysOfWeekStyle(
@@ -193,6 +179,7 @@ class _TodoPage extends State<TodoPage> {
             ),
             Expanded(
               child: Container(
+                width: double.infinity,
                 margin: EdgeInsets.only(top: 10),
                 decoration: BoxDecoration(
                   color: PrimaryColors.black,
@@ -201,10 +188,33 @@ class _TodoPage extends State<TodoPage> {
                     topRight: Radius.circular(30),
                   ),
                 ),
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: EdgeInsets.only(top: 20, right: 30, left: 30),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _calendarController.isToday(_selectedDay)
+                              ? 'Today'
+                              : '${_selectedDay.day}.${_selectedDay.month}.',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 36.0,
+                          ),
+                        )
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
         ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        child: Icon(Icons.add),
+        backgroundColor: PrimaryColors.pink,
       ),
     );
   }
