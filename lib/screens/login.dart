@@ -15,6 +15,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     final node = FocusScope.of(context);
     return Scaffold(
+        backgroundColor: Colors.white,
         body: Container(
             width: double.infinity,
             child: Center(

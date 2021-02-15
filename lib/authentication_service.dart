@@ -106,8 +106,15 @@ class AuthenticationService {
 
   Future<void> loadUserData({String userId}) async {
     try {
-      userData =
+      final fetchedData =
           (await _firestore.collection('users').doc(userId).get()).data();
-    } catch (e) {}
+
+      userData = {
+        'id': userId,
+        'displayName': fetchedData['displayName'],
+      };
+    } catch (e) {
+      print(e);
+    }
   }
 }

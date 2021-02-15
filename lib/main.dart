@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'colors.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'authentication_service.dart';
 import 'screens/register.dart';
 import 'screens/login.dart';
+import 'screens/todo.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -47,8 +47,13 @@ class _LoadingPageState extends State<LoadingPage> {
     final user = context.read<AuthenticationService>().user;
 
     if (user != null) {
-      await context.read<AuthenticationService>().loadUserData();
-      Navigator.pushReplacementNamed(context, '/todo');
+      context
+          .read<AuthenticationService>()
+          .loadUserData(userId: user.uid)
+          .then((_) {
+        Navigator.pushReplacementNamed(context, '/todo');
+      });
+      print(context.read<AuthenticationService>().userData);
     } else {
       SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
         Navigator.pushReplacementNamed(context, '/login');
@@ -65,30 +70,5 @@ class _LoadingPageState extends State<LoadingPage> {
   @override
   Widget build(BuildContext context) {
     return Container();
-  }
-}
-
-class TodoPage extends StatefulWidget {
-  TodoPage({Key key}) : super(key: key);
-
-  @override
-  _TodoPage createState() => _TodoPage();
-}
-
-class _TodoPage extends State<TodoPage> {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: FloatingActionButton(
-            onPressed: () async {
-              context.read<AuthenticationService>().signOut();
-              Navigator.pushReplacementNamed(context, '/register');
-            },
-            child: Icon(
-              Icons.logout,
-            )),
-      ),
-    );
   }
 }
