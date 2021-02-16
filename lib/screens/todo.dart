@@ -24,6 +24,8 @@ class _TodoPage extends State<TodoPage> {
   DateTime _selectedDay = DateTime.now();
   List<dynamic> _selectedEvents;
 
+  DateTime _addTodoDay = DateTime.now();
+
   @override
   void initState() {
     super.initState();
@@ -42,12 +44,12 @@ class _TodoPage extends State<TodoPage> {
             'title': doc.data()['title'],
             'description': doc.data()['description'],
             'completed': doc.data()['completed'],
-            'timestamp': DateTime.fromMillisecondsSinceEpoch(
-                doc.data()['timestamp'].seconds * 1000),
+            'timestamp': doc.data()['timestamp'],
           };
         });
 
-        final groupedEvents = formattedTodos.groupBy((m) => m['timestamp']);
+        final groupedEvents = formattedTodos.groupBy((m) =>
+            DateTime.fromMillisecondsSinceEpoch(m['timestamp'].seconds * 1000));
         _events = groupedEvents.cast<DateTime, List<dynamic>>();
       });
     });
@@ -91,6 +93,162 @@ class _TodoPage extends State<TodoPage> {
 
       print(_selectedEvents);
     });
+  }
+
+  void _settingModalBottomSheet(context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: PrimaryColors.black,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(25.0),
+        ),
+      ),
+      builder: (BuildContext context) {
+        return Padding(
+          padding:
+              EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          child: Padding(
+            padding: EdgeInsets.all(30.0),
+            child: Wrap(
+              children: [
+                Padding(
+                  padding: EdgeInsets.only(
+                    bottom: 15.0,
+                  ),
+                  child: Text(
+                    'Add todo',
+                    style: TextStyle(color: PrimaryColors.pink, fontSize: 30.0),
+                  ),
+                ),
+                Form(
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          vertical: 10,
+                        ),
+                        child: TextFormField(
+                          style: TextStyle(color: Colors.white),
+                          autofocus: true,
+                          cursorColor: Colors.white,
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(),
+                            labelStyle: TextStyle(
+                              color: Colors.white,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: Colors.white),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: Colors.white),
+                            ),
+                            labelText: 'Title',
+                            contentPadding: EdgeInsets.only(
+                                top: -10, bottom: -10, left: 10),
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          vertical: 10,
+                        ),
+                        child: TextFormField(
+                          style: TextStyle(color: Colors.white),
+                          cursorColor: Colors.white,
+                          // autofocus: true,
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(),
+                            labelStyle: TextStyle(
+                              color: Colors.white,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: Colors.white),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: Colors.white),
+                            ),
+                            labelText: 'Description',
+                            contentPadding: EdgeInsets.only(
+                                top: -10, bottom: -10, left: 10),
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          vertical: 10,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            ElevatedButton(
+                              onPressed: () async {
+                                final selectedDay = await showDatePicker(
+                                    context: context,
+                                    initialDate: DateTime.now(),
+                                    firstDate: DateTime.now()
+                                        .subtract(Duration(days: 365)),
+                                    lastDate: DateTime.now().add(
+                                      Duration(days: 365),
+                                    ));
+
+                                setState(() => _addTodoDay = selectedDay != null
+                                    ? selectedDay
+                                    : DateTime.now());
+                              },
+                              style: ButtonStyle(
+                                elevation: MaterialStateProperty.resolveWith(
+                                    (states) => 0),
+                                backgroundColor:
+                                    MaterialStateProperty.resolveWith(
+                                        (_) => Colors.transparent),
+                                shape: MaterialStateProperty.resolveWith(
+                                  (_) => RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(5.0),
+                                  ),
+                                ),
+                                side: MaterialStateProperty.resolveWith(
+                                  (_) => BorderSide(
+                                    width: 1.0,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                              child: Text(
+                                  '${_addTodoDay.day}.${_addTodoDay.month}. ${_addTodoDay.year}'),
+                            ),
+                            MaterialButton(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                },
+                                color: PrimaryColors.pink,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.all(
+                                    Radius.circular(50),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      'Add',
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                    Icon(Icons.add, color: Colors.white),
+                                  ],
+                                )),
+                          ],
+                        ),
+                      )
+                    ],
+                  ),
+                )
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -190,7 +348,7 @@ class _TodoPage extends State<TodoPage> {
                 ),
                 child: SingleChildScrollView(
                   child: Padding(
-                    padding: EdgeInsets.only(top: 20, right: 30, left: 30),
+                    padding: EdgeInsets.only(top: 30, right: 30, left: 30),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -213,6 +371,7 @@ class _TodoPage extends State<TodoPage> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
+        onPressed: () => _settingModalBottomSheet(context),
         child: Icon(Icons.add),
         backgroundColor: PrimaryColors.pink,
       ),

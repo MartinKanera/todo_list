@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
+import 'package:todo_list/colors.dart';
 import 'authentication_service.dart';
 import 'screens/register.dart';
 import 'screens/login.dart';
@@ -27,6 +28,7 @@ class MyApp extends StatelessWidget {
         ],
         child: MaterialApp(
           title: 'Flutter Demo',
+          theme: ThemeData(primarySwatch: Colors.pink),
           routes: {
             '/': (context) => LoadingPage(),
             '/todo': (context) => TodoPage(),
