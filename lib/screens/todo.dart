@@ -17,12 +17,14 @@ class _TodoPage extends State<TodoPage> {
   final _firestore = FirebaseFirestore.instance;
 
   Map<String, String> _user;
-  Map<DateTime, dynamic> _events;
+  Map<DateTime, List<dynamic>> _events;
 
   CalendarController _calendarController;
 
-  DateTime _selectedDay = DateTime.now();
-  List<dynamic> _selectedEvents;
+  final now = DateTime.now();
+  DateTime _selectedDay;
+
+  List<dynamic> _selectedEvents = [];
 
   DateTime _addTodoDay = DateTime.now();
 
@@ -31,6 +33,8 @@ class _TodoPage extends State<TodoPage> {
     super.initState();
     _calendarController = CalendarController();
     _user = context.read<AuthenticationService>().userData;
+
+    _selectedDay = new DateTime(now.year, now.month, now.day);
 
     _firestore
         .collection('todos')
@@ -49,8 +53,16 @@ class _TodoPage extends State<TodoPage> {
         });
 
         final groupedEvents = formattedTodos.groupBy((m) =>
-            DateTime.fromMillisecondsSinceEpoch(m['timestamp'].seconds * 1000));
+            DateTime.fromMillisecondsSinceEpoch(
+                (m['timestamp'].seconds * 1000)));
         _events = groupedEvents.cast<DateTime, List<dynamic>>();
+
+        print(_events);
+
+        _selectedEvents = groupedEvents[_selectedDay].length > 0 &&
+                _calendarController.isSelected(_selectedDay)
+            ? groupedEvents[_selectedDay]
+            : [];
       });
     });
   }
@@ -62,6 +74,10 @@ class _TodoPage extends State<TodoPage> {
   }
 
   Widget _buildEventsMarker(DateTime date, List events) {
+    final eventsInProgress = events.map((e) => e).toList();
+    eventsInProgress.removeWhere((e) => e['completed']);
+
+    if (eventsInProgress.length < 1) return Container();
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       decoration: BoxDecoration(
@@ -76,7 +92,7 @@ class _TodoPage extends State<TodoPage> {
       height: 16.0,
       child: Center(
         child: Text(
-          '${events.length}',
+          '${eventsInProgress.length}',
           style: TextStyle().copyWith(
             color: Colors.white,
             fontSize: 12.0,
@@ -86,12 +102,66 @@ class _TodoPage extends State<TodoPage> {
     );
   }
 
+  Widget _buildListViewItem(context, index) {
+    TextStyle textStyle = TextStyle(
+      color: Colors.white,
+      fontSize: 18.0,
+    );
+
+    final currentEvent = _selectedEvents[index];
+    bool completed = currentEvent['completed'];
+
+    return Row(
+      children: [
+        IconButton(
+            icon: completed
+                ? Icon(Icons.check_circle, color: PrimaryColors.pink, size: 28)
+                : Icon(Icons.radio_button_unchecked,
+                    color: PrimaryColors.pink, size: 28),
+            onPressed: () async {
+              await _firestore.runTransaction((transaction) {
+                transaction.update(
+                    _firestore.collection('todos').doc(currentEvent['id']), {
+                  'completed': !completed,
+                });
+              });
+            }),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _selectedEvents[index]['title'],
+                style: completed
+                    ? textStyle.copyWith(
+                        color: Colors.white70,
+                        decoration: TextDecoration.lineThrough)
+                    : textStyle,
+              ),
+              Text(
+                _selectedEvents[index]['description'],
+                style: completed
+                    ? textStyle.copyWith(
+                        color: Colors.white70,
+                        decoration: TextDecoration.lineThrough,
+                        fontSize: 12.0,
+                      )
+                    : textStyle.copyWith(
+                        fontSize: 12.0,
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   void dayChanged(DateTime day, List<dynamic> events) {
     setState(() {
-      _selectedDay = day;
+      _selectedDay = new DateTime(day.year, day.month, day.day);
+      print(events);
       _selectedEvents = events;
-
-      print(_selectedEvents);
     });
   }
 
@@ -219,24 +289,25 @@ class _TodoPage extends State<TodoPage> {
                                   '${_addTodoDay.day}.${_addTodoDay.month}. ${_addTodoDay.year}'),
                             ),
                             MaterialButton(
-                                onPressed: () {
-                                  Navigator.pop(context);
-                                },
-                                color: PrimaryColors.pink,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.all(
-                                    Radius.circular(50),
-                                  ),
+                              onPressed: () {
+                                Navigator.pop(context);
+                              },
+                              color: PrimaryColors.pink,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(50),
                                 ),
-                                child: Row(
-                                  children: [
-                                    Text(
-                                      'Add',
-                                      style: TextStyle(color: Colors.white),
-                                    ),
-                                    Icon(Icons.add, color: Colors.white),
-                                  ],
-                                )),
+                              ),
+                              child: Row(
+                                children: [
+                                  Text(
+                                    'Add',
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                  Icon(Icons.add, color: Colors.white),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
                       )
@@ -346,21 +417,31 @@ class _TodoPage extends State<TodoPage> {
                     topRight: Radius.circular(30),
                   ),
                 ),
-                child: SingleChildScrollView(
-                  child: Padding(
-                    padding: EdgeInsets.only(top: 30, right: 30, left: 30),
+                child: Padding(
+                  padding: EdgeInsets.only(top: 30, right: 30, left: 30),
+                  child: Container(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          _calendarController.isToday(_selectedDay)
-                              ? 'Today'
-                              : '${_selectedDay.day}.${_selectedDay.month}.',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 36.0,
+                        Padding(
+                          padding: EdgeInsets.only(bottom: 10.0),
+                          child: Text(
+                            _calendarController.isToday(_selectedDay)
+                                ? 'Today'
+                                : '${_selectedDay.day}.${_selectedDay.month}.',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 36.0,
+                            ),
                           ),
-                        )
+                        ),
+                        Expanded(
+                          child: ListView.builder(
+                            itemCount: _selectedEvents.length,
+                            itemBuilder: (context, index) =>
+                                _buildListViewItem(context, index),
+                          ),
+                        ),
                       ],
                     ),
                   ),
