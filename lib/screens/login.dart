@@ -93,8 +93,8 @@ class _LoginPageState extends State<LoginPage> {
                                       .read<AuthenticationService>()
                                       .signIn(email: email, password: password);
                                   if (error.isEmpty)
-                                    Navigator.pushReplacementNamed(
-                                        context, '/todo');
+                                    Navigator.pushNamedAndRemoveUntil(
+                                        context, '/todo', (r) => false);
                                   else
                                     ScaffoldMessenger.of(context).showSnackBar(
                                         SnackBar(content: Text(error)));
@@ -116,8 +116,8 @@ class _LoginPageState extends State<LoginPage> {
                                 await context
                                     .read<AuthenticationService>()
                                     .signInWithGoogle();
-                                Navigator.pushReplacementNamed(
-                                    context, '/todo');
+                                Navigator.pushNamedAndRemoveUntil(
+                                    context, '/todo', (r) => false);
                               },
                               textColor: Colors.black,
                               color: Colors.white,

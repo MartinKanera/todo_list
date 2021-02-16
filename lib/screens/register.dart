@@ -139,8 +139,8 @@ class _RegisterPageState extends State<RegisterPage> {
                                           password: password);
 
                                   if (error.isEmpty)
-                                    Navigator.pushReplacementNamed(
-                                        context, '/todo');
+                                    Navigator.pushNamedAndRemoveUntil(
+                                        context, '/todo', (r) => false);
                                   else
                                     ScaffoldMessenger.of(context).showSnackBar(
                                         SnackBar(content: Text(error)));
@@ -162,8 +162,8 @@ class _RegisterPageState extends State<RegisterPage> {
                                 await context
                                     .read<AuthenticationService>()
                                     .signInWithGoogle();
-                                Navigator.pushReplacementNamed(
-                                    context, '/todo');
+                                Navigator.pushNamedAndRemoveUntil(
+                                    context, '/todo', (r) => false);
                               },
                               textColor: Colors.black,
                               color: Colors.white,
