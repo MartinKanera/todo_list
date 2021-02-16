@@ -124,6 +124,8 @@ class _TodoPage extends State<TodoPage> {
                     _firestore.collection('todos').doc(currentEvent['id']), {
                   'completed': !completed,
                 });
+
+                return;
               });
             }),
         Expanded(
@@ -131,7 +133,7 @@ class _TodoPage extends State<TodoPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                _selectedEvents[index]['title'],
+                currentEvent['title'],
                 style: completed
                     ? textStyle.copyWith(
                         color: Colors.white70,
@@ -139,7 +141,7 @@ class _TodoPage extends State<TodoPage> {
                     : textStyle,
               ),
               Text(
-                _selectedEvents[index]['description'],
+                currentEvent['description'],
                 style: completed
                     ? textStyle.copyWith(
                         color: Colors.white70,
@@ -166,6 +168,10 @@ class _TodoPage extends State<TodoPage> {
   }
 
   void _settingModalBottomSheet(context) {
+    String newTitle = '';
+    String newDescription = '';
+    DateTime newTimestamp = new DateTime(now.year, now.month, now.day);
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -203,6 +209,7 @@ class _TodoPage extends State<TodoPage> {
                           style: TextStyle(color: Colors.white),
                           autofocus: true,
                           cursorColor: Colors.white,
+                          onChanged: (value) => newTitle = value,
                           decoration: InputDecoration(
                             border: OutlineInputBorder(),
                             labelStyle: TextStyle(
@@ -227,7 +234,7 @@ class _TodoPage extends State<TodoPage> {
                         child: TextFormField(
                           style: TextStyle(color: Colors.white),
                           cursorColor: Colors.white,
-                          // autofocus: true,
+                          onChanged: (value) => newDescription = value,
                           decoration: InputDecoration(
                             border: OutlineInputBorder(),
                             labelStyle: TextStyle(
@@ -263,9 +270,10 @@ class _TodoPage extends State<TodoPage> {
                                       Duration(days: 365),
                                     ));
 
-                                setState(() => _addTodoDay = selectedDay != null
-                                    ? selectedDay
-                                    : DateTime.now());
+                                setState(() => newTimestamp =
+                                    selectedDay != null
+                                        ? selectedDay
+                                        : DateTime.now());
                               },
                               style: ButtonStyle(
                                 elevation: MaterialStateProperty.resolveWith(
@@ -286,11 +294,28 @@ class _TodoPage extends State<TodoPage> {
                                 ),
                               ),
                               child: Text(
-                                  '${_addTodoDay.day}.${_addTodoDay.month}. ${_addTodoDay.year}'),
+                                  '${newTimestamp.day}.${newTimestamp.month}. ${newTimestamp.year}'),
                             ),
                             MaterialButton(
-                              onPressed: () {
-                                Navigator.pop(context);
+                              onPressed: () async {
+                                try {
+                                  await _firestore
+                                      .runTransaction((transaction) {
+                                    transaction.set(
+                                        _firestore.collection('todos').doc(), {
+                                      'userId': context
+                                          .read<AuthenticationService>()
+                                          .userData['id'],
+                                      'title': newTitle,
+                                      'description': newDescription,
+                                      'timestamp': newTimestamp,
+                                      'completed': false,
+                                    });
+
+                                    return;
+                                  });
+                                  Navigator.pop(context);
+                                } catch (_) {}
                               },
                               color: PrimaryColors.pink,
                               shape: RoundedRectangleBorder(
