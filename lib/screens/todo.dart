@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -15,6 +17,7 @@ class TodoPage extends StatefulWidget {
 
 class _TodoPage extends State<TodoPage> {
   final _firestore = FirebaseFirestore.instance;
+  final _formKey = GlobalKey<FormState>();
 
   Map<String, String> _user;
   Map<DateTime, List<dynamic>> _events;
@@ -25,8 +28,6 @@ class _TodoPage extends State<TodoPage> {
   DateTime _selectedDay;
 
   List<dynamic> _selectedEvents = [];
-
-  DateTime _addTodoDay = DateTime.now();
 
   @override
   void initState() {
@@ -41,28 +42,31 @@ class _TodoPage extends State<TodoPage> {
         .where('userId', isEqualTo: _user['id'])
         .snapshots()
         .listen((event) {
+      final formattedTodos = event.docs.map((doc) {
+        return {
+          'id': doc.id,
+          'title': doc.data()['title'],
+          'description': doc.data()['description'],
+          'completed': doc.data()['completed'],
+          'timestamp': doc.data()['timestamp'],
+        };
+      });
+
+      final groupedEvents = formattedTodos.groupBy((m) =>
+          DateTime.fromMillisecondsSinceEpoch((m['timestamp'].seconds * 1000)));
+      _events = groupedEvents.cast<DateTime, List<dynamic>>();
       setState(() {
-        final formattedTodos = event.docs.map((doc) {
-          return {
-            'id': doc.id,
-            'title': doc.data()['title'],
-            'description': doc.data()['description'],
-            'completed': doc.data()['completed'],
-            'timestamp': doc.data()['timestamp'],
-          };
-        });
+        try {
+          _selectedEvents = groupedEvents[_selectedDay].length > 0 &&
+                  _calendarController.isSelected(_selectedDay)
+              ? groupedEvents[_selectedDay]
+              : [];
 
-        final groupedEvents = formattedTodos.groupBy((m) =>
-            DateTime.fromMillisecondsSinceEpoch(
-                (m['timestamp'].seconds * 1000)));
-        _events = groupedEvents.cast<DateTime, List<dynamic>>();
-
-        print(_events);
-
-        _selectedEvents = groupedEvents[_selectedDay].length > 0 &&
-                _calendarController.isSelected(_selectedDay)
-            ? groupedEvents[_selectedDay]
-            : [];
+          _selectedEvents.sort((a, b) =>
+              a['title'].toLowerCase().compareTo(b['title'].toLowerCase()));
+        } catch (_) {
+          _selectedEvents = [];
+        }
       });
     });
   }
@@ -112,6 +116,7 @@ class _TodoPage extends State<TodoPage> {
     bool completed = currentEvent['completed'];
 
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         IconButton(
             icon: completed
@@ -129,32 +134,89 @@ class _TodoPage extends State<TodoPage> {
               });
             }),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                currentEvent['title'],
-                style: completed
-                    ? textStyle.copyWith(
-                        color: Colors.white70,
-                        decoration: TextDecoration.lineThrough)
-                    : textStyle,
+          child: TextButton(
+            onPressed: () => _settingModalBottomSheet(
+                context,
+                'Edit todo',
+                new DateTime.fromMillisecondsSinceEpoch(
+                    currentEvent['timestamp'].seconds * 1000),
+                id: currentEvent['id'],
+                title: currentEvent['title'],
+                description: currentEvent['description'],
+                completed: currentEvent['completed']),
+            child: Container(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      currentEvent['title'],
+                      style: completed
+                          ? textStyle.copyWith(
+                              color: Colors.white70,
+                              decoration: TextDecoration.lineThrough)
+                          : textStyle,
+                    ),
+                    currentEvent['description'] != ''
+                        ? Text(
+                            currentEvent['description'],
+                            style: completed
+                                ? textStyle.copyWith(
+                                    color: Colors.white70,
+                                    decoration: TextDecoration.lineThrough,
+                                    fontSize: 12.0,
+                                  )
+                                : textStyle.copyWith(
+                                    fontSize: 12.0,
+                                  ),
+                          )
+                        : Container(),
+                  ],
+                ),
               ),
-              Text(
-                currentEvent['description'],
-                style: completed
-                    ? textStyle.copyWith(
-                        color: Colors.white70,
-                        decoration: TextDecoration.lineThrough,
-                        fontSize: 12.0,
-                      )
-                    : textStyle.copyWith(
-                        fontSize: 12.0,
-                      ),
-              ),
-            ],
+            ),
           ),
         ),
+        IconButton(
+            icon: Icon(Icons.delete_outline, color: Colors.white),
+            onPressed: () {
+              return showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: Text('Delete ${currentEvent['title']}?',
+                      style: TextStyle(color: PrimaryColors.pink)),
+                  actions: <Widget>[
+                    TextButton(
+                      style: ButtonStyle(
+                          foregroundColor: MaterialStateColor.resolveWith(
+                              (_) => Colors.black)),
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                      },
+                      child: Text("Cancel"),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        try {
+                          await _firestore.runTransaction((transaction) {
+                            transaction.delete(_firestore
+                                .collection('todos')
+                                .doc(currentEvent['id']));
+
+                            return;
+                          });
+                          Navigator.of(ctx).pop();
+                        } catch (e) {
+                          print(e);
+                        }
+                      },
+                      child: Text("Delete"),
+                    ),
+                  ],
+                ),
+              );
+            }),
       ],
     );
   }
@@ -162,15 +224,20 @@ class _TodoPage extends State<TodoPage> {
   void dayChanged(DateTime day, List<dynamic> events) {
     setState(() {
       _selectedDay = new DateTime(day.year, day.month, day.day);
-      print(events);
+      events.sort((a, b) =>
+          a['title'].toLowerCase().compareTo(b['title'].toLowerCase()));
       _selectedEvents = events;
     });
   }
 
-  void _settingModalBottomSheet(context) {
-    String newTitle = '';
-    String newDescription = '';
-    DateTime newTimestamp = new DateTime(now.year, now.month, now.day);
+  void _settingModalBottomSheet(context, sectionTitle, timestamp,
+      {String id = '',
+      String title = '',
+      String description = '',
+      bool completed = false}) {
+    String newTitle = title;
+    String newDescription = description;
+    DateTime newTimestamp = timestamp;
 
     showModalBottomSheet(
       context: context,
@@ -194,11 +261,12 @@ class _TodoPage extends State<TodoPage> {
                     bottom: 15.0,
                   ),
                   child: Text(
-                    'Add todo',
+                    sectionTitle,
                     style: TextStyle(color: PrimaryColors.pink, fontSize: 30.0),
                   ),
                 ),
                 Form(
+                  key: _formKey,
                   child: Column(
                     children: [
                       Padding(
@@ -206,32 +274,40 @@ class _TodoPage extends State<TodoPage> {
                           vertical: 10,
                         ),
                         child: TextFormField(
-                          style: TextStyle(color: Colors.white),
-                          autofocus: true,
-                          cursorColor: Colors.white,
-                          onChanged: (value) => newTitle = value,
-                          decoration: InputDecoration(
-                            border: OutlineInputBorder(),
-                            labelStyle: TextStyle(
-                              color: Colors.white,
+                            initialValue: title,
+                            style: TextStyle(color: Colors.white),
+                            autofocus: true,
+                            cursorColor: Colors.white,
+                            onChanged: (value) => newTitle = value,
+                            decoration: InputDecoration(
+                              border: OutlineInputBorder(),
+                              labelStyle: TextStyle(
+                                color: Colors.white,
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: Colors.white),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: Colors.white),
+                              ),
+                              labelText: 'Title',
+                              contentPadding: EdgeInsets.only(
+                                  top: -10, bottom: -10, left: 10),
                             ),
-                            focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: Colors.white),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: Colors.white),
-                            ),
-                            labelText: 'Title',
-                            contentPadding: EdgeInsets.only(
-                                top: -10, bottom: -10, left: 10),
-                          ),
-                        ),
+                            validator: (value) {
+                              if (value.isEmpty) {
+                                return 'Title can not be empty';
+                              }
+
+                              return null;
+                            }),
                       ),
                       Padding(
                         padding: EdgeInsets.symmetric(
                           vertical: 10,
                         ),
                         child: TextFormField(
+                          initialValue: description,
                           style: TextStyle(color: Colors.white),
                           cursorColor: Colors.white,
                           onChanged: (value) => newDescription = value,
@@ -298,24 +374,38 @@ class _TodoPage extends State<TodoPage> {
                             ),
                             MaterialButton(
                               onPressed: () async {
+                                if (!_formKey.currentState.validate()) return;
+
                                 try {
+                                  final ref = id != ''
+                                      ? _firestore.collection('todos').doc(id)
+                                      : _firestore.collection('todos').doc();
+
                                   await _firestore
                                       .runTransaction((transaction) {
                                     transaction.set(
-                                        _firestore.collection('todos').doc(), {
-                                      'userId': context
-                                          .read<AuthenticationService>()
-                                          .userData['id'],
-                                      'title': newTitle,
-                                      'description': newDescription,
-                                      'timestamp': newTimestamp,
-                                      'completed': false,
-                                    });
+                                        ref,
+                                        {
+                                          'userId': context
+                                              .read<AuthenticationService>()
+                                              .userData['id'],
+                                          'title': newTitle,
+                                          'description': newDescription,
+                                          'timestamp': newTimestamp,
+                                          'completed': completed,
+                                        },
+                                        SetOptions(merge: true));
 
                                     return;
                                   });
+
+                                  _selectedEvents.sort((a, b) => a['title']
+                                      .toLowerCase()
+                                      .compareTo(b['title'].toLowerCase()));
                                   Navigator.pop(context);
-                                } catch (_) {}
+                                } catch (e) {
+                                  print(e);
+                                }
                               },
                               color: PrimaryColors.pink,
                               shape: RoundedRectangleBorder(
@@ -326,7 +416,7 @@ class _TodoPage extends State<TodoPage> {
                               child: Row(
                                 children: [
                                   Text(
-                                    'Add',
+                                    'Save',
                                     style: TextStyle(color: Colors.white),
                                   ),
                                   Icon(Icons.add, color: Colors.white),
@@ -450,14 +540,29 @@ class _TodoPage extends State<TodoPage> {
                       children: [
                         Padding(
                           padding: EdgeInsets.only(bottom: 10.0),
-                          child: Text(
-                            _calendarController.isToday(_selectedDay)
-                                ? 'Today'
-                                : '${_selectedDay.day}.${_selectedDay.month}.',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 36.0,
-                            ),
+                          child: Row(
+                            children: [
+                              Text(
+                                _calendarController.isToday(_selectedDay)
+                                    ? 'Today'
+                                    : '${_selectedDay.day}.${_selectedDay.month}.',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 36.0,
+                                ),
+                              ),
+                              Expanded(
+                                child: Container(
+                                  alignment: Alignment.centerRight,
+                                  child: FloatingActionButton(
+                                    onPressed: () => _settingModalBottomSheet(
+                                        context, 'Add todo', _selectedDay),
+                                    child: Icon(Icons.add),
+                                    backgroundColor: PrimaryColors.pink,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         Expanded(
@@ -476,11 +581,12 @@ class _TodoPage extends State<TodoPage> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _settingModalBottomSheet(context),
-        child: Icon(Icons.add),
-        backgroundColor: PrimaryColors.pink,
-      ),
+      // floatingActionButton: FloatingActionButton(
+      //   onPressed: () => _settingModalBottomSheet(
+      //       context, 'Add todo', DateTime(now.year, now.month, now.day)),
+      //   child: Icon(Icons.add),
+      //   backgroundColor: PrimaryColors.pink,
+      // ),
     );
   }
 }
