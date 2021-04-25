@@ -137,7 +137,7 @@ class _TodoPage extends State<TodoPage> {
           child: TextButton(
             onPressed: () => _settingModalBottomSheet(
                 context,
-                'Edit todo',
+                false,
                 new DateTime.fromMillisecondsSinceEpoch(
                     currentEvent['timestamp'].seconds * 1000),
                 id: currentEvent['id'],
@@ -178,45 +178,6 @@ class _TodoPage extends State<TodoPage> {
             ),
           ),
         ),
-        IconButton(
-            icon: Icon(Icons.delete_outline, color: Colors.white),
-            onPressed: () {
-              return showDialog(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: Text('Delete ${currentEvent['title']}?',
-                      style: TextStyle(color: PrimaryColors.pink)),
-                  actions: <Widget>[
-                    TextButton(
-                      style: ButtonStyle(
-                          foregroundColor: MaterialStateColor.resolveWith(
-                              (_) => Colors.black)),
-                      onPressed: () {
-                        Navigator.of(ctx).pop();
-                      },
-                      child: Text("Cancel"),
-                    ),
-                    TextButton(
-                      onPressed: () async {
-                        try {
-                          await _firestore.runTransaction((transaction) {
-                            transaction.delete(_firestore
-                                .collection('todos')
-                                .doc(currentEvent['id']));
-
-                            return;
-                          });
-                          Navigator.of(ctx).pop();
-                        } catch (e) {
-                          print(e);
-                        }
-                      },
-                      child: Text("Delete"),
-                    ),
-                  ],
-                ),
-              );
-            }),
       ],
     );
   }
@@ -230,7 +191,7 @@ class _TodoPage extends State<TodoPage> {
     });
   }
 
-  void _settingModalBottomSheet(context, sectionTitle, timestamp,
+  void _settingModalBottomSheet(context, newTodo, timestamp,
       {String id = '',
       String title = '',
       String description = '',
@@ -260,9 +221,14 @@ class _TodoPage extends State<TodoPage> {
                   padding: EdgeInsets.only(
                     bottom: 15.0,
                   ),
-                  child: Text(
-                    sectionTitle,
-                    style: TextStyle(color: PrimaryColors.pink, fontSize: 30.0),
+                  child: Row(
+                    children: [
+                      Text(
+                        newTodo ? 'Add todo' : 'Edit todo',
+                        style: TextStyle(
+                            color: PrimaryColors.pink, fontSize: 30.0),
+                      ),
+                    ],
                   ),
                 ),
                 Form(
@@ -372,54 +338,121 @@ class _TodoPage extends State<TodoPage> {
                               child: Text(
                                   '${newTimestamp.day}.${newTimestamp.month}. ${newTimestamp.year}'),
                             ),
-                            MaterialButton(
-                              onPressed: () async {
-                                if (!_formKey.currentState.validate()) return;
-
-                                try {
-                                  final ref = id != ''
-                                      ? _firestore.collection('todos').doc(id)
-                                      : _firestore.collection('todos').doc();
-
-                                  await _firestore
-                                      .runTransaction((transaction) {
-                                    transaction.set(
-                                        ref,
-                                        {
-                                          'userId': context
-                                              .read<AuthenticationService>()
-                                              .userData['id'],
-                                          'title': newTitle,
-                                          'description': newDescription,
-                                          'timestamp': newTimestamp,
-                                          'completed': completed,
-                                        },
-                                        SetOptions(merge: true));
-
-                                    return;
-                                  });
-
-                                  _selectedEvents.sort((a, b) => a['title']
-                                      .toLowerCase()
-                                      .compareTo(b['title'].toLowerCase()));
-                                  Navigator.pop(context);
-                                } catch (e) {
-                                  print(e);
-                                }
-                              },
-                              color: PrimaryColors.pink,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.all(
-                                  Radius.circular(50),
-                                ),
-                              ),
+                            Expanded(
                               child: Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
                                 children: [
-                                  Text(
-                                    'Save',
-                                    style: TextStyle(color: Colors.white),
+                                  !newTodo
+                                      ? IconButton(
+                                          icon: Icon(Icons.delete_outline,
+                                              color: Colors.white),
+                                          onPressed: () {
+                                            return showDialog(
+                                              context: context,
+                                              builder: (ctx) => AlertDialog(
+                                                title: Text('Delete $title?',
+                                                    style: TextStyle(
+                                                        color: PrimaryColors
+                                                            .pink)),
+                                                actions: <Widget>[
+                                                  TextButton(
+                                                    style: ButtonStyle(
+                                                        foregroundColor:
+                                                            MaterialStateColor
+                                                                .resolveWith(
+                                                                    (_) => Colors
+                                                                        .black)),
+                                                    onPressed: () {
+                                                      Navigator.of(ctx).pop();
+                                                    },
+                                                    child: Text("Cancel"),
+                                                  ),
+                                                  TextButton(
+                                                    onPressed: () async {
+                                                      try {
+                                                        await _firestore
+                                                            .runTransaction(
+                                                                (transaction) {
+                                                          transaction.delete(
+                                                              _firestore
+                                                                  .collection(
+                                                                      'todos')
+                                                                  .doc(id));
+
+                                                          return;
+                                                        });
+                                                        Navigator.popUntil(
+                                                            context,
+                                                            ModalRoute.withName(
+                                                                '/todo'));
+                                                      } catch (e) {
+                                                        print(e);
+                                                      }
+                                                    },
+                                                    child: Text("Delete"),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          })
+                                      : Container(),
+                                  MaterialButton(
+                                    onPressed: () async {
+                                      if (!_formKey.currentState.validate())
+                                        return;
+
+                                      try {
+                                        final ref = id != ''
+                                            ? _firestore
+                                                .collection('todos')
+                                                .doc(id)
+                                            : _firestore
+                                                .collection('todos')
+                                                .doc();
+
+                                        await _firestore
+                                            .runTransaction((transaction) {
+                                          transaction.set(
+                                              ref,
+                                              {
+                                                'userId': context
+                                                    .read<
+                                                        AuthenticationService>()
+                                                    .userData['id'],
+                                                'title': newTitle,
+                                                'description': newDescription,
+                                                'timestamp': newTimestamp,
+                                                'completed': completed,
+                                              },
+                                              SetOptions(merge: true));
+
+                                          return;
+                                        });
+
+                                        _selectedEvents.sort((a, b) =>
+                                            a['title'].toLowerCase().compareTo(
+                                                b['title'].toLowerCase()));
+                                        Navigator.pop(context);
+                                      } catch (e) {
+                                        print(e);
+                                      }
+                                    },
+                                    color: PrimaryColors.pink,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.all(
+                                        Radius.circular(50),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Text(
+                                          'Save',
+                                          style: TextStyle(color: Colors.white),
+                                        ),
+                                        Icon(Icons.add, color: Colors.white),
+                                      ],
+                                    ),
                                   ),
-                                  Icon(Icons.add, color: Colors.white),
                                 ],
                               ),
                             ),
@@ -551,17 +584,6 @@ class _TodoPage extends State<TodoPage> {
                                   fontSize: 36.0,
                                 ),
                               ),
-                              Expanded(
-                                child: Container(
-                                  alignment: Alignment.centerRight,
-                                  child: FloatingActionButton(
-                                    onPressed: () => _settingModalBottomSheet(
-                                        context, 'Add todo', _selectedDay),
-                                    child: Icon(Icons.add),
-                                    backgroundColor: PrimaryColors.pink,
-                                  ),
-                                ),
-                              ),
                             ],
                           ),
                         ),
@@ -581,12 +603,12 @@ class _TodoPage extends State<TodoPage> {
           ],
         ),
       ),
-      // floatingActionButton: FloatingActionButton(
-      //   onPressed: () => _settingModalBottomSheet(
-      //       context, 'Add todo', DateTime(now.year, now.month, now.day)),
-      //   child: Icon(Icons.add),
-      //   backgroundColor: PrimaryColors.pink,
-      // ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _settingModalBottomSheet(
+            context, true, DateTime(now.year, now.month, now.day)),
+        child: Icon(Icons.add),
+        backgroundColor: PrimaryColors.pink,
+      ),
     );
   }
 }
